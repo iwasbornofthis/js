@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>랜딩 페이지</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        body,
+        html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: rgb(46, 58, 67);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+
+        }
+
+        .landing-container {
+           background-color : #4D6879;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease-in-out;
+            transform: translateY(-100vh);
+            /* 화면 위에서 시작 */
+            opacity: 0;
+            /* 초기에 보이지 않도록 설정 */
+        }
+
+        h1 {
+            color: #fff;
+        }
+
+        p {
+            color: #666;
+        }
+
+        .button-container {
+            margin-top: 20px;
+        }
+
+        @keyframes flyRandomly {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    20% { transform: translate(-150px, -250px) rotate(120deg); }
+    40% { transform: translate(250px, 100px) rotate(-240deg); }
+    60% { transform: translate(-100px, 150px) rotate(360deg); }
+    80% { transform: translate(150px, -75px) rotate(480deg); }
+    100% { transform: translate(0, 0) rotate(600deg); }
+}
+
+
+
+
+
+        @keyframes dropIn {
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            font-weight: bold;
+            outline: none;
+            transform: translateY(-100vh);
+            /* 초기 위치 설정 */
+            animation: dropIn 0.5s ease forwards
+                /* 아래로 떨어지는 애니메이션 */
+
+        }
+
+        .register {
+            width: 200px;
+            border-radius: 6px;
+            text-align: center;
+            color: #fff;
+            height: 50px;
+            padding: 0;
+            text-shadow: 1px 1px 1px #000;
+            font-size: 18px;
+            text-transform: uppercase;
+            margin-top: 50px;
+            border: 1px solid #000;
+            background: #000;
+            background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #3b3b3b), color-stop(100%, #000000));
+            background: -webkit-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -moz-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -o-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -ms-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            opacity: 0.5;
+
+        }
+
+        .solve {
+            width: 200px;
+            border-radius: 6px;
+            text-align: center;
+            color: #fff;
+            height: 50px;
+            padding: 0;
+            text-shadow: 1px 1px 1px #000;
+            font-size: 18px;
+            text-transform: uppercase;
+            margin-top: 50px;
+            border: 1px solid #000;
+            background: #000;
+            background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #3b3b3b), color-stop(100%, #000000));
+            background: -webkit-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -moz-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -o-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -ms-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            opacity: 0.5;
+
+        }
+
+        .action-button:hover {
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .button-container {
+                flex-direction: column;
+            }
+
+            .action-button {
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="landing-container">
+        <h1>Hello</h1>
+        <div class="button-container">
+            <a href="qr.html"><button class="action-button register">문제 등록하기</button></a>
+            <a href="car_quiz_1.html"><button class="action-button solve">문제 풀기</button></a>
+        </div>
+    </div>
+    <script>
+        window.onload = function () {
+            var container = document.querySelector('.landing-container');
+            container.style.opacity = 1;
+            container.style.transform = 'translateY(0)';
+            container.style.transition = 'transform 0.5s ease-in-out, opacity 0.5s ease-in-out';
+        };
+        document.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', function (event) {
+                event.preventDefault(); // 기본 이동 방지
+                var targetUrl = this.parentElement.getAttribute('href'); // 이동할 URL 추출
+
+                this.style.animation = 'flyRandomly 2s linear'; // 클릭 시 애니메이션 적용
+
+                setTimeout(() => {
+                    window.location.href = targetUrl; // 2초 후 페이지 이동
+                }, 1000); // 2000 밀리초 후 실행
+            });
+        });
+
+
+    </script>
+</body>
+
+</html>

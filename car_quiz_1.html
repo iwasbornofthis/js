@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>테스트</title>
+  <!-- <script src="data.js"></script> -->
+  <link rel="stylesheet" href="nav.css">
+
+
+  <style>
+    body {
+      background: #4D6879;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+    }
+
+    .correct-answer {
+      animation: flashingColor 1s infinite alternate;
+    }
+
+    @keyframes flashingColor {
+
+      0%,
+      100% {
+        color: red;
+        /* 시작과 끝 색상 */
+      }
+
+      50% {
+        color: yellow;
+        /* 중간 색상 */
+      }
+    }
+
+
+
+    .wrong-answer {
+      color: green;
+    }
+
+    .normal-answer {
+      color: black;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .show {
+      display: block;
+    }
+
+    .choice-container {
+      opacity: 0;
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      /* 기본 상태는 투명 */
+      /* 추가적인 스타일링이 필요하면 여기에 추가 */
+    }
+
+    .choice-container.visible {
+      animation: fadeIn 0.5s forwards;
+      /* 애니메이션 적용 */
+    }
+
+    @keyframes fadeIn {
+      0% {
+        transform: translateY(20px);
+        /* 시작할 때 위에서 아래로 내려오는 효과 적용 */
+        opacity: 0;
+      }
+
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .option {
+      display: block;
+      position: relative;
+    }
+
+    .option input[type="radio"] {
+      margin-right: 10px;
+    }
+
+    #cbtForm {
+      padding: 15px;
+      margin-bottom: 40px;
+    }
+
+    .bottom {
+      display: flex;
+      justify-content: center;
+    }
+
+    .submit-button,
+    #review-wrong-answers,#restart-button {
+
+      width: 600px;
+      border-radius: 6px;
+      text-align: center;
+      color: #fff;
+      height: 50px;
+      padding: 0;
+      text-shadow: 1px 1px 1px #000;
+      font-size: 18px;
+      text-transform: uppercase;
+      margin-top: 50px;
+      border: 1px solid #000;
+      background: #000;
+      background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #3b3b3b), color-stop(100%, #000000));
+      background: -webkit-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+      background: -moz-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+      background: -o-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+      background: -ms-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+      background: linear-gradient(top, #3b3b3b 0%, #000000 100%);
+      opacity: 0.5;
+    }
+
+    .submit-button:hover,#review-wrong-answers:hover,#restart-button:hover {
+      color: #ccc;
+      cursor: pointer;
+      opacity: 0.8;
+    }
+
+    .question-header {
+      background: rgb(46, 58, 67);
+      /* Orange color */
+      color: white;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    #question-container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      max-width: 600px;
+      margin: auto;
+
+    }
+
+    .select-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    #results-container {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      color: #333;
+      text-align: center;
+    }
+
+
+
+    #review-wrong-answers:hover {
+      background-color: #367c39;
+      /* Darker green */
+    }
+
+    #wrong-note-container {
+      background-color: #f4f4f4;
+      /* Light gray */
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    #wrong-note-container h2 {
+      color: #333;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>자동차 구조 입문 테스트</h1>
+  <div class="select-container">
+    <select id="hyperlinkSelect" onchange="goToLink()">
+      <option value="">선택하세요</option>
+      <option value="car_quiz_1.html">기출문제 1</option>
+      <option value="car_quiz_2.html">기출문제 2</option>
+      <option value="car_quiz_3.html">기출문제 3</option>
+    </select>
+  </div>
+
+
+  <div class="hamburger" onclick="toggleNav()">
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <div class="navbar" id="myNavbar">
+    <a href="index.html">홈</a>
+    <a href="qr.html">문제등록하기</a>
+    <a href="car_quiz_1.html">문제풀기</a>
+  </div>
+
+  <form id="cbtForm">
+    <div id="question-container"></div>
+    <div class="bottom">
+      <input type="submit" class="submit-button" value="제출">
+    </div>
+
+  </form>
+  <div id="results-container" class="hidden">
+    <button id="review-wrong-answers" class="hidden" onclick="displayWrongAnswers()">오답노트 보기</button>
+    <div id="wrong-note-container" class="hidden">
+      <h2>오답노트</h2>
+    </div>
+  </div>
+  <script>
+    const quiz = {
+        1: {
+            question: "자동차 산업과 배경에서 가장 적합하지 않는 설명을 고르십시오.",
+            choices: {
+                choice1: "화석 연료 사용에 따른 배기 배출물을 저감해야 한다.",
+                choice2: "화석 연료 사용량은 여전히 높은 수준이다.",
+                choice3: "CO2는 안정적인 물질로 전혀 문제가 되지 않는다.",
+                choice4: "탄소 중립화은 화석 연료 사용과 중요한 연관성이 있다."
+            },
+            correctChoice: "choice3"
+        },
+        2: {
+            question: "다음 중 엔진룸 내부 장치에 대해 올바르게 설명한 것을 고르십시오.",
+            choices: {
+                choice1: "엔진 열을 시켜주는 오일은 브레이크 오일이다.",
+                choice2: "엔진 오일은 워셔액 탱크로 주입을 하는 것이 일반적이다.",
+                choice3: "자동차를 멈추는 것은 에어 클리너의 가장 중요한 역할이다.",
+                choice4: "에어 클리너는 자동차 주행 시 엔진으로 들어오는 공기의 이물질을 거를 수 있다."
+            },
+            correctChoice: "choice4"
+        }
+    };
+  </script>
+  <script src="cbt.js"></script>
+  <script src="nav.js"></script>
+ 
+  <script>
+    function goToLink() {
+      var selectBox = document.getElementById('hyperlinkSelect');
+      var selectedValue = selectBox.options[selectBox.selectedIndex].value;
+      if (selectedValue) {
+        window.location.href = selectedValue;
+      }
+    }
+
+  </script>
+</body>
+
+</html>

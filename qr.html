@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>기존 JavaScript 파일에 퀴즈 데이터 추가</title>
+    <link rel="stylesheet" href="nav.css">
+    <style>
+        body{
+            background: #4D6879;
+
+        }
+        #wrapper {
+            font-family: verdana;
+            margin: auto;
+            background: #4D6879;
+            /* You can change the main color of thew form here. */
+            font-size: 14px;
+            width: 100%;
+            max-width: 500px;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            font-size: 24px;
+            padding: 13px 0;
+            color: #fff;
+            text-shadow: 1px 1px 1px #666;
+        }
+
+        input {
+            height: 18px;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            -webkit-border-radius: 6px;
+            -khtml-border-radius: 6px;
+            -moz-border-radius: 6px;
+            border-radius: 6px;
+            -webkit-box-shadow: 0 0 10px #444;
+            -moz-box-shadow: 0 0 10px #444;
+            box-shadow: 0 0 10px #444;
+            border: 1px solid #fff;
+        }
+
+    
+        #submit, #customFileUpload {
+            width: 100%;
+            border-radius: 6px;
+            text-align: center;
+            color: #fff;
+            height: 50px;
+            padding: 0;
+            text-shadow: 1px 1px 1px #000;
+            font-size: 18px;
+            text-transform: uppercase;
+            margin-top: 50px;
+            border: 1px solid #000;
+            background: #000;
+            background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #3b3b3b), color-stop(100%, #000000));
+            background: -webkit-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -moz-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -o-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: -ms-linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            background: linear-gradient(top, #3b3b3b 0%, #000000 100%);
+            opacity: 0.5;
+        }
+
+        #submit:hover, #customFileUpload:hover {
+            color: #ccc;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        label {
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        h2{
+            margin-top: 100px;
+            text-align: center;
+            color: white;
+        }
+
+      
+    </style>
+</head>
+
+<body>
+
+    <h2>퀴즈 데이터 추가</h2>
+    
+    
+ <div class="hamburger" onclick="toggleNav()">
+    <div></div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <div class="navbar" id="myNavbar">
+    <a href="index.html">홈</a>
+    <a href="qr.html">문제등록하기</a>
+    <a href="car_quiz_1.html">문제풀기</a>
+  </div>
+
+
+    <div id="wrapper">
+        <div>
+            <label for="fileInput"></label>
+            <input type="file" id="fileInput" accept=".js" style="display:none;">
+            <button id="customFileUpload">파일 선택</button>
+        </div>
+       
+        
+        <form id="quizForm">
+            <div>
+                <label for="question">질문:</label>
+                <input type="text" id="question" name="question" required>
+            </div>
+            <div>
+                <label for="choice1">선택지 1:</label>
+                <input type="text" id="choice1" name="choice1" required>
+            </div>
+            <div>
+                <label for="choice2">선택지 2:</label>
+                <input type="text" id="choice2" name="choice2" required>
+            </div>
+            <div>
+                <label for="choice3">선택지 3:</label>
+                <input type="text" id="choice3" name="choice3" required>
+            </div>
+            <div>
+                <label for="choice4">선택지 4:</label>
+                <input type="text" id="choice4" name="choice4" required>
+            </div>
+            <div>
+                <label for="correctChoice">정답(선택지 번호 입력):</label>
+                <input type="number" id="correctChoice" name="correctChoice" min="1" max="4" required>
+            </div>
+            <input id="submit" type="summit" value="데이터 추가하고 다운로드" onclick="processQuizData()">
+        </form>
+    </div>
+    <script src="nav.js"></script>
+    <script>
+        document.getElementById('customFileUpload').addEventListener('click', function () {
+            document.getElementById('fileInput').click();
+        });
+
+
+
+        function processQuizData() {
+            const fileInput = document.getElementById('fileInput');
+            // Check if a file was provided for appending data
+            if (fileInput.files.length > 0) {
+                appendDataToFile(fileInput.files[0]);
+            } else {
+                alert("파일을 선택해주세요.");
+            }
+        }
+
+        function appendDataToFile(file) {
+            const reader = new FileReader();
+
+            // ...
+            reader.onload = function (e) {
+                let scriptContent = e.target.result;
+                scriptContent = scriptContent.replace('const quiz = ', '').replace(/;$/, '');
+
+                let existingQuizzes;
+                try {
+                    existingQuizzes = eval('(' + scriptContent + ')');
+                } catch (error) {
+                    console.error("파일의 내용을 평가하는데 오류가 발생했습니다:", error);
+                    alert("파일의 형식이 올바르지 않습니다.");
+                    return;
+                }
+
+                // 새로운 퀴즈 데이터를 추가하는 로직을 수정합니다.
+                const newQuiz = getQuizData();
+
+                // 기존 키들 중 가장 큰 값을 찾아서 새로운 키로 사용합니다.
+                const newKey = Math.max(...Object.keys(existingQuizzes).map(Number)) + 1; // 키들을 숫자로 변환하고, 최대값을 찾은 다음 1을 더합니다.
+                existingQuizzes[newKey] = newQuiz; // 새 퀴즈를 객체에 추가합니다.
+
+                // 수정된 데이터를 다운로드합니다.
+                const newScriptContent = "const quiz = " + JSON.stringify(existingQuizzes, null, 2) + ";";
+                downloadFile(newScriptContent, 'data.js');
+            };
+
+            // ...
+
+
+            reader.onerror = function () {
+                console.error("파일을 읽는데 실패했습니다.");
+                alert("파일을 읽는 데 실패했습니다.");
+            };
+
+            // 파일의 텍스트 내용을 읽음
+            reader.readAsText(file);
+        }
+
+
+        function createNewFile() {
+            const newData = formatQuizData();
+            downloadFile(newData, 'new_quiz.js');
+        }
+
+        function formatQuizData() {
+            // Format the quiz data as a JavaScript variable
+            const quizData = getQuizData();
+            return "var quizData = " + JSON.stringify(quizData, null, 2) + ";";
+        }
+
+        function getQuizData() {
+            // Get the quiz data from the form
+            return {
+                question: document.getElementById('question').value,
+                choices: {
+                    choice1: document.getElementById('choice1').value,
+                    choice2: document.getElementById('choice2').value,
+                    choice3: document.getElementById('choice3').value,
+                    choice4: document.getElementById('choice4').value
+                },
+                correctChoice: 'choice' + document.getElementById('correctChoice').value
+            };
+        }
+
+        function downloadFile(content, fileName) {
+            // Use Blob to create a file with the provided content and download it
+            const blob = new Blob([content], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
+</body>
+
+</html>
