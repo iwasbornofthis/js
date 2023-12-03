@@ -21,6 +21,7 @@ window.onload = function () {
         const currentQuestion = quiz[questionIndex];
         if (currentQuestion) {
             const shuffledChoices = shuffleArray(Object.entries(currentQuestion.choices));
+    
 
             questionContainer.innerHTML = `<div class="question-header">${currentQuestion.question}</div>`;
 

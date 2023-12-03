@@ -48,9 +48,7 @@
       <h2>오답노트</h2>
     </div>
   </div>
-  <script src="gotolink.js"></script>
   <script>
-    
     const quiz = {
       "5": {
         "question": "자바스크립트를 담당하시는 교수님은?",
@@ -76,6 +74,17 @@
   </script>
   <script src="cbt.js"></script>
   <script src="nav.js"></script>
+
+  <script>
+    function goToLink() {
+      var selectBox = document.getElementById('hyperlinkSelect');
+      var selectedValue = selectBox.options[selectBox.selectedIndex].value;
+      if (selectedValue) {
+        window.location.href = selectedValue;
+      }
+    }
+
+  </script>
  
 </body>
 
