@@ -44,7 +44,8 @@
 
 .hamburger div {
     width: 30px;
-    height: 3px;
+    height: 6px;
+    border-radius: 999999px;
     background-color: white;
     /* 배경색 추가 */
     margin: 5px 0;
