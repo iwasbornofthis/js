@@ -176,8 +176,11 @@ window.onload = function () {
             wrongNoteContainer.style.display = 'none';
             wrongNoteContainer.classList.add('hidden');
         }
-
+        startTime = Date.now();
+       
         displayRandomQuestion();
+        document.getElementById('timer').innerText = `시간: 0초`
+        timerId = setInterval(updateTime, 1000);
     }
 
 
