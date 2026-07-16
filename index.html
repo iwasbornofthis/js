@@ -6,22 +6,64 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
     />
-    <title>
-      요정공주 채하 - AR 팬카드 전개 데모
-    </title>
+    <title>요정공주 채하 - AR 팬카드 전개 데모 (3D 입체 터치)</title>
 
     <!-- 웹캠 제어 및 3D 렌더링을 즉시 구동해주는 오픈소스 AR 라이브러리 -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
+    <script>
+      // [핵심] 조명과 그림자에 반응하여 광택이 나는 입체 3D 하트를 그리는 A-Frame 커스텀 컴포넌트 등록
+      AFRAME.registerComponent("heart-3d", {
+        schema: {
+          color: { type: "color", default: "#ff4b72" },
+        },
+        init: function () {
+          // 3D 공간에 정의할 하트 단면 곡선 그리기
+          const shape = new THREE.Shape();
+          shape.moveTo(0, -0.3);
+          shape.bezierCurveTo(-0.2, -0.3, -0.5, -0.1, -0.5, 0.15);
+          shape.bezierCurveTo(-0.5, 0.4, -0.25, 0.5, 0, 0.25);
+          shape.bezierCurveTo(0.25, 0.5, 0.5, 0.4, 0.5, 0.15);
+          shape.bezierCurveTo(0.5, -0.1, 0.2, -0.3, 0, -0.3);
+
+          // 하트에 두께감을 더하고 모서리를 둥글게 깎아 입체감 부여 (Bevel 처리)
+          const extrudeSettings = {
+            depth: 0.12, // 하트 두께
+            bevelEnabled: true, // 부드러운 각진 엣지 활성화
+            bevelSegments: 5, // 둥글기 퀄리티
+            steps: 1,
+            bevelSize: 0.04, // 둥글게 다듬는 크기
+            bevelThickness: 0.04, // 앞으로 돌출될 모서리 두께
+          };
+
+          const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+          geometry.center(); // 자전축이 하트의 정확한 한가운데가 되도록 자동 정렬
+
+          // 조명 스펙큘러가 은은하게 반짝이는 하이글로시 매끄러운 마테리얼 적용
+          const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(this.data.color),
+            roughness: 0.15, // 낮을수록 유리나 사탕처럼 빤짝거림
+            metalness: 0.05,
+            transparent: true, // 자연스럽게 투명해지도록 처리
+            opacity: 1.0,
+            side: THREE.DoubleSide,
+          });
+
+          const mesh = new THREE.Mesh(geometry, material);
+          this.el.setObject3D("mesh", mesh);
+        },
+      });
+    </script>
+
     <style>
       :root {
         /* 요정공주 채하를 위한 핑크/보라/골드 감성 테마 설정 */
-        --sky: #ff8da1;          /* 체리블라썸 핑크 */
-        --sky-bright: #ffd0e0;   /* 브라이트 로즈 핑크 */
+        --sky: #ff8da1; /* 체리블라썸 핑크 */
+        --sky-bright: #ffd0e0; /* 브라이트 로즈 핑크 */
         --glow: rgba(255, 141, 161, 0.5);
         --bg: #0e050b;
-        --surface-3: #2c1525;    /* 딥 바이올렛 */
+        --surface-3: #2c1525; /* 딥 바이올렛 */
         --text: #faeef3;
         --text-faint: #7d6171;
       }
@@ -37,6 +79,8 @@
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         margin: 0;
         overflow: hidden;
+        /* 터치 시 브라우저 기본 파란색 하이라이트 박스 제거 */
+        -webkit-tap-highlight-color: transparent;
       }
 
       /* 상단 채하 테마 앱바 */
@@ -82,6 +126,7 @@
         font-size: 13px;
         font-weight: 800;
         border-radius: 20px;
+        transition: background-color 0.3s ease;
       }
       .points-chip::before {
         content: "✨";
@@ -153,9 +198,9 @@
     <header class="appbar">
       <div class="logo-text">
         <b>요정공주 채하 AR</b>
-        <small>요정나라 카드 전개 데모</small>
+        <small>요정나라 카드 전개 데모 (3D 마법 터치)</small>
       </div>
-      <div class="points-chip">마법 스캐너</div>
+      <div class="points-chip" id="status-badge">터치해봐! 💖</div>
     </header>
 
     <!-- 가이드 HUD -->
@@ -180,43 +225,56 @@
         <canvas id="rightCanvas" width="350" height="500"></canvas>
       </a-assets>
 
+      <!-- 입체 3D 디테일을 드라마틱하게 연출하기 위한 조명 추가 -->
+      <a-entity
+        light="type: ambient; color: #ffffff; intensity: 0.7;"
+      ></a-entity>
+      <a-entity
+        light="type: directional; color: #ffffff; intensity: 0.9;"
+        position="2 4 3"
+      ></a-entity>
+
       <!-- 히로(Hiro) 마커 감지 노드 -->
       <a-marker preset="hiro" id="ar-marker">
         <a-entity id="unfold-group">
-          <!-- [1] 중앙 메인 카드 (기존 가로 2.8 -> 1.8 로 축소) -->
+          <!-- [1] 중앙 메인 카드 -->
           <a-plane
             id="center-card"
-            position="0 0.1 0"
+            position="0 0.2 0"
             rotation="-90 0 0"
-            width="1.8"
-            height="2.52"
+            width="2.8"
+            height="3.92"
             material="src: #cardCanvas; transparent: true;"
           ></a-plane>
 
-          <!-- [2] 좌측 스탯 정보 패널 (기존 가로 1.96 -> 1.26 으로 축소) -->
+          <!-- [2] 좌측 스탯 정보 패널 -->
           <a-plane
             id="left-panel"
-            position="0 0.02 0"
+            position="0 0.05 0"
             rotation="-90 0 0"
-            width="1.26"
-            height="1.8"
+            width="1.96"
+            height="2.8"
             material="src: #leftCanvas; transparent: true; opacity: 0;"
           ></a-plane>
 
-          <!-- [3] 우측 트로피 정보 패널 (기존 가로 1.96 -> 1.26 으로 축소) -->
+          <!-- [3] 우측 트로피 정보 패널 -->
           <a-plane
             id="right-panel"
-            position="0 0.02 0"
+            position="0 0.05 0"
             rotation="-90 0 0"
-            width="1.26"
-            height="1.8"
+            width="1.96"
+            height="2.8"
             material="src: #rightCanvas; transparent: true; opacity: 0;"
           ></a-plane>
         </a-entity>
       </a-marker>
 
-      <!-- 화각(fov: 40) 상태에서도 너무 가깝게 보이지 않도록 밸런스를 맞췄습니다. -->
-      <a-entity camera="fov: 40; active: true;" position="0 0 0"></a-entity>
+      <!-- 메인 카메라 노드 -->
+      <a-entity
+        camera="fov: 60; active: true;"
+        position="0 0 0"
+        id="main-camera"
+      ></a-entity>
     </a-scene>
 
     <script>
@@ -228,21 +286,22 @@
 
       // 1. 중앙 요정공주 채하 카드 텍스처 그리기
       drawToCanvas("cardCanvas", (ctx, w, h) => {
-        ctx.fillStyle = "#1e0c18";
+        ctx.fillStyle = "#1e0c18"; // 어두운 핑크바이올렛 배경
         ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "#ff8da1";
+        ctx.strokeStyle = "#ff8da1"; // 핑크 테두리
         ctx.lineWidth = 14;
         ctx.strokeRect(20, 20, w - 40, h - 40);
 
         ctx.fillStyle = "#ffd0e0";
         ctx.font = "bold 90px sans-serif";
-        ctx.fillText("👑", 60, 150);
+        ctx.fillText("👑", 60, 150); // 왕관 심볼
         ctx.font = "bold 55px sans-serif";
-        ctx.fillText("채하", 60, 230);
+        ctx.fillText("채하", 60, 230); // 한글 이름
         ctx.font = "bold 20px sans-serif";
         ctx.fillStyle = "#7d6171";
-        ctx.fillText("요정공주 / 로열 등급", 60, 275);
+        ctx.fillText("요정공주 / 로열 등급", 60, 275); // 한글 등급 정보
 
+        // 프레임 박스 (일러스트 영역)
         ctx.strokeStyle = "rgba(255, 141, 161, 0.4)";
         ctx.lineWidth = 5;
         ctx.strokeRect(40, 320, w - 80, 330);
@@ -269,7 +328,7 @@
         ctx.fillStyle = "#ffd0e0";
         ctx.fillText("마력 충전량", 35, 340);
         ctx.fillStyle = "#ff8da1";
-        ctx.fillRect(35, 370, 240, 24);
+        ctx.fillRect(35, 370, 240, 24); // 마력 게이지
       });
 
       // 3. 오른쪽 스펠 패널 텍스처 그리기
@@ -296,13 +355,30 @@
       const rightPanel = document.getElementById("right-panel");
       const centerCard = document.getElementById("center-card");
       const scannerUI = document.getElementById("scanner-ui");
+      const statusBadge = document.getElementById("status-badge");
+      const mainCamera = document.getElementById("main-camera");
 
       let isTracking = false;
       let animProgress = 0.0;
 
+      // 활성화된 마법 하트 파티클 배열
+      const activeHearts = [];
+
+      // 요정나라 파스텔 톤 3D 하트 파티클 색상 목록
+      const heartColors = [
+        "#ff4b72", // 체리 로즈
+        "#ff8da1", // 파스텔 핑크
+        "#ffd0e0", // 오로라 핑크
+        "#ffe066", // 요정 가루 골드
+        "#e8a7ff", // 신비로운 퍼플
+        "#5cd6ff", // 에메랄드 블루
+      ];
+
       marker.addEventListener("markerFound", () => {
         isTracking = true;
         scannerUI.style.display = "none";
+        statusBadge.innerText = "마법 터치! ✨";
+        statusBadge.style.background = "#ff4b72";
       });
 
       marker.addEventListener("markerLost", () => {
@@ -310,13 +386,105 @@
         setTimeout(() => {
           if (!isTracking) {
             scannerUI.style.display = "flex";
+            statusBadge.innerText = "터치해봐! 💖";
+            statusBadge.style.background = "var(--surface-3)";
           }
         }, 300);
       });
 
+      // 손가락 터치 위치에서 단 '하나'의 입체 3D 하트를 생성하여 발사하는 정교한 함수
+      function spawnMagicHeartAtClick(e) {
+        // 탑바 UI 영역 터치 차단
+        if (e.clientY < 65) return;
+
+        const camera = mainCamera.getObject3D("camera");
+        if (!camera) return;
+
+        // 1. 터치한 2D 좌표를 WebGL Normalized Device Coordinates(NDC)로 변환
+        const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+        const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        // 2. 카메라의 뷰 투영 매트릭스를 활용해 2D 스크린 좌표를 3D 광선(Ray) 벡터로 역투영(Unproject)
+        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vec.unproject(camera);
+
+        const camPos = new THREE.Vector3();
+        camera.getWorldPosition(camPos);
+
+        // 3. 카메라 위치에서 터치 위치를 향하는 3차원 방향(Vector) 추출
+        const dir = vec.clone().sub(camPos).normalize();
+
+        // 4. 화면 바로 앞에서 생성된 것처럼 자연스럽도록 카메라 기준 약 0.7m 전방의 3D 공간에 생성 위치 지정
+        const spawnDistance = 0.7;
+        const spawnWorldPos = camPos
+          .clone()
+          .add(dir.clone().multiplyScalar(spawnDistance));
+
+        // 5. 알록달록한 마법 색상 중 하나 무작위 추출
+        const randomColor =
+          heartColors[Math.floor(Math.random() * heartColors.length)];
+
+        // 6. A-Frame 엔티티 생성 및 방금 만든 'heart-3d' 컴포넌트 장착
+        const heartEl = document.createElement("a-entity");
+        heartEl.setAttribute("heart-3d", `color: ${randomColor}`);
+
+        // 절대 좌표 기준 생성
+        heartEl.setAttribute(
+          "position",
+          `${spawnWorldPos.x} ${spawnWorldPos.y} ${spawnWorldPos.z}`,
+        );
+
+        // 입체적인 느낌을 살리기 위해 랜덤 회전 축 적용
+        const rotX = Math.random() * 360;
+        const rotY = Math.random() * 360;
+        const rotZ = Math.random() * 360;
+        heartEl.setAttribute("rotation", `${rotX} ${rotY} ${rotZ}`);
+
+        // 마커나 특정 엔티티에 종속되지 않고, 월드 공간 전체에 직접 추가
+        const sceneEl = document.querySelector("a-scene");
+        sceneEl.appendChild(heartEl);
+
+        // 7. 터치한 방향을 향해 힘차게 깊숙히 멀어지도록 속도 제어
+        const speed = 4.2; // 앞으로 날아가는 속도
+        const vx = dir.x * speed + (Math.random() - 0.5) * 0.3;
+        const vy = dir.y * speed + (Math.random() - 0.5) * 0.3;
+        const vz = dir.z * speed + (Math.random() - 0.5) * 0.3;
+
+        // 8. 업데이트 루프에 보관하여 자연스럽게 비행/소멸하도록 등록
+        activeHearts.push({
+          el: heartEl,
+          x: spawnWorldPos.x,
+          y: spawnWorldPos.y,
+          z: spawnWorldPos.z,
+          vx: vx,
+          vy: vy,
+          vz: vz,
+          rx: rotX,
+          ry: rotY,
+          rz: rotZ,
+          rvx: (Math.random() - 0.5) * 220, // 공중 제비 회전 속도
+          rvy: (Math.random() - 0.5) * 220,
+          rvz: (Math.random() - 0.5) * 220,
+          life: 1.0,
+          decay: Math.random() * 0.35 + 0.4, // 소멸 속도 (약 1.5~2초 유지)
+        });
+      }
+
+      // 모바일 멀티 터치 오작동을 차단하고 클릭 시 정확히 한 개씩만 발사하게 하는 통합 리스너
+      window.addEventListener("pointerdown", (e) => {
+        spawnMagicHeartAtClick(e);
+      });
+
+      let lastTime = performance.now();
+
       function animate() {
         requestAnimationFrame(animate);
 
+        const now = performance.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        // 카드 전개 애니메이션
         if (isTracking) {
           animProgress += (1.0 - animProgress) * 0.08;
         } else {
@@ -324,25 +492,20 @@
         }
 
         if (leftPanel && rightPanel && centerCard) {
-          /* 
-            [크기 조절 반영]
-            - 수평 전개 간격(기존 2.6 -> 1.6)을 좁혀서 작은 카드 스케일에 딱 달라붙게 함.
-            - 수직 공중부양 높이(기존 0.3~0.4 -> 0.15~0.2)를 줄여 튀어 나가는 느낌 완화.
-          */
-          leftPanel.setAttribute("position", `${-1.6 * animProgress} 0.02 0`);
-          rightPanel.setAttribute("position", `${1.6 * animProgress} 0.02 0`);
+          leftPanel.setAttribute("position", `${-2.6 * animProgress} 0.05 0`);
+          rightPanel.setAttribute("position", `${2.6 * animProgress} 0.05 0`);
 
           centerCard.setAttribute(
             "position",
-            `0 ${0.1 + 0.15 * animProgress} 0`,
+            `0 ${0.2 + 0.3 * animProgress} 0`,
           );
           leftPanel.setAttribute(
             "position",
-            `${-1.6 * animProgress} ${0.02 + 0.2 * animProgress} 0`,
+            `${-2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
           );
           rightPanel.setAttribute(
             "position",
-            `${1.6 * animProgress} ${0.02 + 0.2 * animProgress} 0`,
+            `${2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
           );
 
           leftPanel.setAttribute(
@@ -353,6 +516,52 @@
             "material",
             `src: #rightCanvas; transparent: true; opacity: ${animProgress}`,
           );
+        }
+
+        // --- 마법 3D 하트 실시간 역학 계산 및 소멸 제어 루프 ---
+        for (let i = activeHearts.length - 1; i >= 0; i--) {
+          const h = activeHearts[i];
+          h.life -= h.decay * dt;
+
+          // 수명이 끝난 하트 정밀 클리닝
+          if (h.life <= 0) {
+            if (h.el.parentNode) {
+              h.el.parentNode.removeChild(h.el);
+            }
+            activeHearts.splice(i, 1);
+            continue;
+          }
+
+          // 공기저항 감속
+          h.vx *= 0.96;
+          h.vy *= 0.96;
+          h.vz *= 0.96;
+
+          // 프레임 보정 속도로 3D 좌표 물리 연산
+          h.x += h.vx * dt;
+          h.y += h.vy * dt;
+          h.z += h.vz * dt;
+
+          // 회전
+          h.rx += h.rvx * dt;
+          h.ry += h.rvy * dt;
+          h.rz += h.rvz * dt;
+
+          // 크기 점진 수축
+          const currentScale = h.life * 0.6; // 초기 크기 배율 최적화
+
+          h.el.setAttribute("position", `${h.x} ${h.y} ${h.z}`);
+          h.el.setAttribute("rotation", `${h.rx} ${h.ry} ${h.rz}`);
+          h.el.setAttribute(
+            "scale",
+            `${currentScale} ${currentScale} ${currentScale}`,
+          );
+
+          // Three.js 내부 마테리얼에 투명도 동적 적용 (자연스러운 디졸브 연출)
+          const mesh = h.el.getObject3D("mesh");
+          if (mesh && mesh.material) {
+            mesh.material.opacity = h.life;
+          }
         }
       }
 
