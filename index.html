@@ -1,144 +1,265 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web NFC 테스트 페이지</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 80vh;
-        }
-        .container {
-            max-width: 400px;
-            width: 100%;
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            text-align: center;
-            box-sizing: border-box;
-        }
-        h1 {
-            font-size: 22px;
-            margin-bottom: 10px;
-            color: #1a1a1a;
-        }
-        p {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
-        .btn {
-            background-color: #007aff;
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 50px;
-            cursor: pointer;
-            width: 100%;
-            transition: background 0.2s;
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
-        }
-        .btn:disabled {
-            background-color: #ccc;
-            box-shadow: none;
-            cursor: not-allowed;
-        }
-        .btn:active:not(:disabled) {
-            background-color: #0056b3;
-        }
-        #output {
-            margin-top: 25px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-            text-align: left;
-            font-size: 14px;
-            min-height: 80px;
-            white-space: pre-line;
-            word-break: break-all;
-            line-height: 1.6;
-        }
-        .warning {
-            color: #dc3545;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>대구FC - AR 팬카드 전개 데모 (실물 카드 사이즈 스케일링)</title>
 
-<div class="container">
-    <h1>Web NFC 테스트</h1>
-    <p>안드로이드 앱 빌드 없이 브라우저에서 스마트폰 NFC 동작을 즉시 검증합니다.</p>
-    
-    <button id="scanBtn" class="btn">NFC 스캔 시작</button>
-    
-    <div id="output">버튼을 누르면 테스트가 시작됩니다.</div>
-</div>
+  <!-- 웹캠 제어 및 3D 렌더링을 즉시 구동해주는 오픈소스 AR 라이브러리 -->
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
-<script>
-    const scanBtn = document.getElementById('scanBtn');
-    const output = document.getElementById('output');
-
-    // 1. 브라우저가 Web NFC를 지원하는지 환경 체크
-    if (!('NDEFReader' in window)) {
-        output.innerHTML = `<span class="warning">⚠️ Web NFC를 사용할 수 없는 환경입니다.</span>\n\n• 반드시 안드로이드 스마트폰의 <b>Chrome 브라우저</b>를 이용해 주세요.\n• 주소가 <b>https://</b> 로 시작하는 보안 연결 환경이어야만 작동합니다.`;
-        scanBtn.disabled = true;
+  <style>
+    :root {
+      --sky: #33bdf5;
+      --sky-bright: #7fe0ff;
+      --glow: rgba(51, 189, 245, 0.5);
+      --bg: #05090e;
+      --surface-3: #22323f;   
+      --text: #eef5fa;
+      --text-faint: #61717d;
     }
 
-    // 2. 스캔 시작 버튼 이벤트
-    scanBtn.addEventListener('click', async () => {
-        try {
-            output.innerHTML = "🔄 NFC 리더기를 활성화하는 중...";
-            
-            // NDEFReader 인스턴스 생성 및 스캔 활성화 (폰에서 NFC 권한 요청 팝업이 뜸)
-            const ndef = new NDEFReader();
-            await ndef.scan();
-            
-            output.innerHTML = "📶 준비 완료!\n스마트폰 뒷면에 NFC 태그나 카드를 가까이 대세요.";
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-            // 3. NFC 카드가 감지되었을 때의 이벤트 핸들러
-            ndef.addEventListener("reading", ({ message, serialNumber }) => {
-                let resultText = `✅ <b>NFC 태그 감지 성공!</b>\n\n`;
-                resultText += `<b>일련번호(UID):</b> ${serialNumber}\n`;
-                resultText += `<b>레코드 수:</b> ${message.records.length}개\n\n`;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      overflow: hidden; 
+    }
 
-                // 태그 안에 저장된 데이터가 있다면 파싱해서 보여줌
-                message.records.forEach((record, index) => {
-                    resultText += `[레코드 ${index + 1}] 타입: ${record.recordType}\n`;
-                    if (record.recordType === "text") {
-                        const textDecoder = new TextDecoder(record.encoding);
-                        resultText += ` ↳ 내용: ${textDecoder.decode(record.data)}\n`;
-                    }
-                });
+    /* 상단 대구FC 테마 앱바 */
+    .appbar {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+      backdrop-filter: blur(16px) saturate(140%);
+      background: rgba(9, 15, 22, 0.86);
+      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
+      pointer-events: none;
+    }
+    .logo-text { display: flex; flex-direction: column; gap: 4px; line-height: 1; }
+    .logo-text b { color: var(--sky-bright); font-weight: 900; font-size: 19px; }
+    .logo-text small { font-weight: 700; color: var(--text-faint); font-size: 9px; letter-spacing: 3px; }
+    .points-chip {
+      display: inline-flex; align-items: center; gap: 7px; color: var(--sky-bright);
+      background: var(--surface-3);
+      padding: 8px 14px; font-size: 13px; font-weight: 800;
+    }
+    .points-chip::before { content: ''; width: 7px; height: 7px; background: var(--sky); box-shadow: 0 0 8px var(--sky); }
 
-                output.innerHTML = resultText;
-            });
+    /* 화면 중앙 스캔 안내 프레임 */
+    .cam-overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .cam-frame {
+      position: relative; z-index: 2; width: min(64vw, 260px); aspect-ratio: 1;
+      box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.55); 
+    }
+    .cam-frame::before {
+      content: ''; position: absolute; inset: 0; filter: drop-shadow(0 0 8px var(--glow));
+      background:
+        linear-gradient(var(--sky) 0 0) top left / 34px 3px,
+        linear-gradient(var(--sky) 0 0) top left / 3px 34px,
+        linear-gradient(var(--sky) 0 0) top right / 34px 3px,
+        linear-gradient(var(--sky) 0 0) top right / 3px 34px,
+        linear-gradient(var(--sky) 0 0) bottom left / 34px 3px,
+        linear-gradient(var(--sky) 0 0) bottom left / 3px 34px,
+        linear-gradient(var(--sky) 0 0) bottom right / 34px 3px,
+        linear-gradient(var(--sky) 0 0) bottom right / 3px 34px;
+      background-repeat: no-repeat;
+    }
+    .cam-frame::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 10%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--sky-bright), transparent);
+      box-shadow: 0 0 14px 2px var(--glow);
+      animation: camScan 2.2s ease-in-out infinite;
+    }
+    @keyframes camScan { 0%, 100% { top: 8%; } 50% { top: 90%; } }
+  </style>
+</head>
+<body style="margin: 0px; overflow: hidden;">
 
-            // 읽기 실패 에러 처리
-            ndef.addEventListener("readingerror", () => {
-                output.innerHTML = "❌ NFC 태그를 읽는 데 실패했습니다. 올바른 태그 유형인지 확인하세요.";
-            });
+  <!-- 상단 대구FC UI 레이아웃 -->
+  <header class="appbar">
+    <div class="logo-text">
+      <b>DAEGU FC AR</b>
+      <small>REAL CARD SCALE TEST</small>
+    </div>
+    <div class="points-chip">AR SCANNER</div>
+  </header>
 
-        } catch (error) {
-            output.innerHTML = `<span class="warning">❌ 에러 발생: ${error.message}</span>\n\n사용자가 권한을 거부했거나 폰의 NFC 기능이 꺼져있을 수 있습니다.`;
-            console.error(error);
-        }
+  <!-- 가이드 HUD -->
+  <div class="cam-overlay" id="scanner-ui">
+    <div class="cam-frame"></div>
+  </div>
+
+  <a-scene embedded 
+           arjs="sourceType: webcam; 
+                 debugUIEnabled: false; 
+                 detectionMode: mono_and_matrix; 
+                 matrixCodeType: 3x3; 
+                 sourceWidth: 640; 
+                 sourceHeight: 480; 
+                 displayWidth: 640; 
+                 displayHeight: 480;">
+                 
+    <a-assets>
+      <canvas id="cardCanvas" width="512" height="712"></canvas>
+      <canvas id="leftCanvas" width="350" height="500"></canvas>
+      <canvas id="rightCanvas" width="350" height="500"></canvas>
+    </a-assets>
+
+    <!-- 히로(Hiro) 마커 감지 노드 -->
+    <a-marker preset="hiro" id="ar-marker">
+      
+      <!-- 카드 본체와 좌우 패널을 감싸는 전개 애니메이션 컨테이너 그룹 -->
+      <a-entity id="unfold-group">
+        
+        <!-- 
+          [1] 중앙 메인 카드 
+          - 실물 컬렉터블 카드 비율(약 1:1.4) 유지하며 대폭 스케일링 업 (가로 2.8, 세로 3.92)[cite: 3]
+        -->
+        <a-plane id="center-card" position="0 0.2 0" rotation="-90 0 0" width="2.8" height="3.92" material="src: #cardCanvas; transparent: true;"></a-plane>
+
+        <!-- 
+          [2] 좌측 스탯 정보 패널
+          - 메인 카드 확장에 맞추어 패널 사이즈 업 (가로 1.96, 세로 2.8)[cite: 3]
+        -->
+        <a-plane id="left-panel" position="0 0.05 0" rotation="-90 0 0" width="1.96" height="2.8" material="src: #leftCanvas; transparent: true; opacity: 0;"></a-plane>
+
+        <!-- 
+          [3] 우측 트로피 정보 패널
+          - 메인 카드 확장에 맞추어 패널 사이즈 업 (가로 1.96, 세로 2.8)[cite: 3]
+        -->
+        <a-plane id="right-panel" position="0 0.05 0" rotation="-90 0 0" width="1.96" height="2.8" material="src: #rightCanvas; transparent: true; opacity: 0;"></a-plane>
+
+      </a-entity>
+
+    </a-marker>
+
+    <a-entity camera="fov: 60; active: true;" position="0 0 0"></a-entity>
+  </a-scene>
+
+  <script>
+    const drawToCanvas = (id, drawFn) => {
+      const canvas = document.getElementById(id);
+      const ctx = canvas.getContext('2d');
+      drawFn(ctx, canvas.width, canvas.height);
+    };
+
+    // 1. 중앙 세징야 카드 텍스처 그리기
+    drawToCanvas('cardCanvas', (ctx, w, h) => {
+      ctx.fillStyle = '#0c1c2c';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#33bdf5';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(20, 20, w - 40, h - 40);
+
+      ctx.fillStyle = '#7fe0ff';
+      ctx.font = 'bold 100px sans-serif';
+      ctx.fillText('11', 60, 150);
+      ctx.font = 'bold 45px sans-serif';
+      ctx.fillText('CESINHA', 60, 230);
+      ctx.font = 'bold 22px sans-serif';
+      ctx.fillStyle = '#61717d';
+      ctx.fillText('DAEGU FC / FORWARD', 60, 275);
+
+      ctx.strokeStyle = 'rgba(51, 189, 245, 0.4)';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(40, 320, w-80, 330);
     });
-</script>
 
+    // 2. 왼쪽 스탯 패널 텍스처 그리기
+    drawToCanvas('leftCanvas', (ctx, w, h) => {
+      ctx.fillStyle = 'rgba(14, 23, 33, 0.95)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#33bdf5';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(15, 15, w - 30, h - 30);
+
+      ctx.fillStyle = '#7fe0ff';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillText('PERSONA DATA', 35, 70);
+
+      ctx.fillStyle = '#eef5fa';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('AGE: 36', 35, 150);
+      ctx.fillText('HEIGHT: 177cm', 35, 200);
+      ctx.fillText('WEIGHT: 74kg', 35, 250);
+
+      ctx.fillStyle = '#7fe0ff';
+      ctx.fillText('SKILLS GAUGE', 35, 340);
+      ctx.fillStyle = '#33bdf5';
+      ctx.fillRect(35, 370, 240, 24);
+    });
+
+    // 3. 오른쪽 트로피 패널 텍스처 그리기
+    drawToCanvas('rightCanvas', (ctx, w, h) => {
+      ctx.fillStyle = 'rgba(14, 23, 33, 0.95)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#33bdf5';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(15, 15, w - 30, h - 30);
+
+      ctx.fillStyle = '#7fe0ff';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillText('HONORS', 35, 70);
+
+      ctx.fillStyle = '#eef5fa';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('🏆 FA CUP WINNER', 35, 150);
+      ctx.fillText('⭐ K-LEAGUE MVP', 35, 210);
+      ctx.fillText('⚽ TOP ASSISTANT', 35, 270);
+    });
+
+    const marker = document.getElementById('ar-marker');
+    const leftPanel = document.getElementById('left-panel');
+    const rightPanel = document.getElementById('right-panel');
+    const centerCard = document.getElementById('center-card');
+    const scannerUI = document.getElementById('scanner-ui');
+
+    let isTracking = false;
+    let animProgress = 0.0;
+
+    marker.addEventListener('markerFound', () => {
+      isTracking = true;
+      scannerUI.style.display = 'none'; 
+    });
+
+    marker.addEventListener('markerLost', () => {
+      isTracking = false;
+      setTimeout(() => {
+        if (!isTracking) {
+          scannerUI.style.display = 'flex';
+        }
+      }, 300);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (isTracking) {
+        animProgress += (1.0 - animProgress) * 0.08; 
+      } else {
+        animProgress += (0.0 - animProgress) * 0.15; 
+      }
+
+      if (leftPanel && rightPanel && centerCard) {
+        // [스케일링 보정 - X축] 
+        // 카드 본체가 가로 2.8로 커졌기 때문에 겹치지 않고 양옆으로 전개되도록 거리를 -2.6, 2.6으로 대폭 확장[cite: 3]
+        leftPanel.setAttribute('position', `${-2.6 * animProgress} 0.05 0`);
+        rightPanel.setAttribute('position', `${2.6 * animProgress} 0.05 0`);
+
+        // [스케일링 보정 - Y축]
+        // 커진 카드 크기에 맞춰 수직 돌출 높이도 카드 높이의 입체감에 맞게 더 크게(0.2 ~ 0.5) 리사이징[cite: 3]
+        centerCard.setAttribute('position', `0 ${0.2 + 0.3 * animProgress} 0`);
+        leftPanel.setAttribute('position', `${-2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`);
+        rightPanel.setAttribute('position', `${2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`);
+
+        // 페이드인 처리
+        leftPanel.setAttribute('material', `src: #leftCanvas; transparent: true; opacity: ${animProgress}`);
+        rightPanel.setAttribute('material', `src: #rightCanvas; transparent: true; opacity: ${animProgress}`);
+      }
+    }
+
+    animate();
+  </script>
 </body>
 </html>
