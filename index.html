@@ -183,39 +183,40 @@
       <!-- 히로(Hiro) 마커 감지 노드 -->
       <a-marker preset="hiro" id="ar-marker">
         <a-entity id="unfold-group">
-          <!-- [1] 중앙 메인 카드 -->
+          <!-- [1] 중앙 메인 카드 (기존 가로 2.8 -> 1.8 로 축소) -->
           <a-plane
             id="center-card"
-            position="0 0.2 0"
+            position="0 0.1 0"
             rotation="-90 0 0"
-            width="2.8"
-            height="3.92"
+            width="1.8"
+            height="2.52"
             material="src: #cardCanvas; transparent: true;"
           ></a-plane>
 
-          <!-- [2] 좌측 스탯 정보 패널 -->
+          <!-- [2] 좌측 스탯 정보 패널 (기존 가로 1.96 -> 1.26 으로 축소) -->
           <a-plane
             id="left-panel"
-            position="0 0.05 0"
+            position="0 0.02 0"
             rotation="-90 0 0"
-            width="1.96"
-            height="2.8"
+            width="1.26"
+            height="1.8"
             material="src: #leftCanvas; transparent: true; opacity: 0;"
           ></a-plane>
 
-          <!-- [3] 우측 트로피 정보 패널 -->
+          <!-- [3] 우측 트로피 정보 패널 (기존 가로 1.96 -> 1.26 으로 축소) -->
           <a-plane
             id="right-panel"
-            position="0 0.05 0"
+            position="0 0.02 0"
             rotation="-90 0 0"
-            width="1.96"
-            height="2.8"
+            width="1.26"
+            height="1.8"
             material="src: #rightCanvas; transparent: true; opacity: 0;"
           ></a-plane>
         </a-entity>
       </a-marker>
 
-      <a-entity camera="fov: 60; active: true;" position="0 0 0"></a-entity>
+      <!-- 화각(fov: 40) 상태에서도 너무 가깝게 보이지 않도록 밸런스를 맞췄습니다. -->
+      <a-entity camera="fov: 40; active: true;" position="0 0 0"></a-entity>
     </a-scene>
 
     <script>
@@ -227,22 +228,21 @@
 
       // 1. 중앙 요정공주 채하 카드 텍스처 그리기
       drawToCanvas("cardCanvas", (ctx, w, h) => {
-        ctx.fillStyle = "#1e0c18"; // 어두운 핑크바이올렛 배경
+        ctx.fillStyle = "#1e0c18";
         ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "#ff8da1"; // 핑크 테두리
+        ctx.strokeStyle = "#ff8da1";
         ctx.lineWidth = 14;
         ctx.strokeRect(20, 20, w - 40, h - 40);
 
         ctx.fillStyle = "#ffd0e0";
         ctx.font = "bold 90px sans-serif";
-        ctx.fillText("👑", 60, 150); // 왕관 심볼
+        ctx.fillText("👑", 60, 150);
         ctx.font = "bold 55px sans-serif";
-        ctx.fillText("채하", 60, 230); // 한글 이름
+        ctx.fillText("채하", 60, 230);
         ctx.font = "bold 20px sans-serif";
         ctx.fillStyle = "#7d6171";
-        ctx.fillText("요정공주 / 로열 등급", 60, 275); // 한글 등급 정보
+        ctx.fillText("요정공주 / 로열 등급", 60, 275);
 
-        // 프레임 박스 (일러스트 영역)
         ctx.strokeStyle = "rgba(255, 141, 161, 0.4)";
         ctx.lineWidth = 5;
         ctx.strokeRect(40, 320, w - 80, 330);
@@ -269,7 +269,7 @@
         ctx.fillStyle = "#ffd0e0";
         ctx.fillText("마력 충전량", 35, 340);
         ctx.fillStyle = "#ff8da1";
-        ctx.fillRect(35, 370, 240, 24); // 마력 게이지
+        ctx.fillRect(35, 370, 240, 24);
       });
 
       // 3. 오른쪽 스펠 패널 텍스처 그리기
@@ -324,20 +324,25 @@
         }
 
         if (leftPanel && rightPanel && centerCard) {
-          leftPanel.setAttribute("position", `${-2.6 * animProgress} 0.05 0`);
-          rightPanel.setAttribute("position", `${2.6 * animProgress} 0.05 0`);
+          /* 
+            [크기 조절 반영]
+            - 수평 전개 간격(기존 2.6 -> 1.6)을 좁혀서 작은 카드 스케일에 딱 달라붙게 함.
+            - 수직 공중부양 높이(기존 0.3~0.4 -> 0.15~0.2)를 줄여 튀어 나가는 느낌 완화.
+          */
+          leftPanel.setAttribute("position", `${-1.6 * animProgress} 0.02 0`);
+          rightPanel.setAttribute("position", `${1.6 * animProgress} 0.02 0`);
 
           centerCard.setAttribute(
             "position",
-            `0 ${0.2 + 0.3 * animProgress} 0`,
+            `0 ${0.1 + 0.15 * animProgress} 0`,
           );
           leftPanel.setAttribute(
             "position",
-            `${-2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
+            `${-1.6 * animProgress} ${0.02 + 0.2 * animProgress} 0`,
           );
           rightPanel.setAttribute(
             "position",
-            `${2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
+            `${1.6 * animProgress} ${0.02 + 0.2 * animProgress} 0`,
           );
 
           leftPanel.setAttribute(
