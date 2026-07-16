@@ -1,265 +1,375 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-  <title>대구FC - AR 팬카드 전개 데모 (실물 카드 사이즈 스케일링)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
+    />
+    <title>대구FC - AR 팬카드 전개 데모 (실물 카드 사이즈 & 고화질 카메라 결합본)</title>
 
-  <!-- 웹캠 제어 및 3D 렌더링을 즉시 구동해주는 오픈소스 AR 라이브러리 -->
-  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- 웹캠 제어 및 3D 렌더링을 즉시 구동해주는 오픈소스 AR 라이브러리 -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
-  <style>
-    :root {
-      --sky: #33bdf5;
-      --sky-bright: #7fe0ff;
-      --glow: rgba(51, 189, 245, 0.5);
-      --bg: #05090e;
-      --surface-3: #22323f;   
-      --text: #eef5fa;
-      --text-faint: #61717d;
-    }
+    <style>
+      :root {
+        --sky: #33bdf5;
+        --sky-bright: #7fe0ff;
+        --glow: rgba(51, 189, 245, 0.5);
+        --bg: #05090e;
+        --surface-3: #22323f;
+        --text: #eef5fa;
+        --text-faint: #61717d;
+      }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      overflow: hidden; 
-    }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        margin: 0;
+        overflow: hidden;
+      }
 
-    /* 상단 대구FC 테마 앱바임 */
-    .appbar {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-      backdrop-filter: blur(16px) saturate(140%);
-      background: rgba(9, 15, 22, 0.86);
-      padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
-      pointer-events: none;
-    }
-    .logo-text { display: flex; flex-direction: column; gap: 4px; line-height: 1; }
-    .logo-text b { color: var(--sky-bright); font-weight: 900; font-size: 19px; }
-    .logo-text small { font-weight: 700; color: var(--text-faint); font-size: 9px; letter-spacing: 3px; }
-    .points-chip {
-      display: inline-flex; align-items: center; gap: 7px; color: var(--sky-bright);
-      background: var(--surface-3);
-      padding: 8px 14px; font-size: 13px; font-weight: 800;
-    }
-    .points-chip::before { content: ''; width: 7px; height: 7px; background: var(--sky); box-shadow: 0 0 8px var(--sky); }
+      /* 상단 대구FC 테마 앱바 */
+      .appbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        backdrop-filter: blur(16px) saturate(140%);
+        background: rgba(9, 15, 22, 0.86);
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none; /* 클릭 방해 금지 */
+      }
+      .logo-text {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        line-height: 1;
+      }
+      .logo-text b {
+        color: var(--sky-bright);
+        font-weight: 900;
+        font-size: 19px;
+      }
+      .logo-text small {
+        font-weight: 700;
+        color: var(--text-faint);
+        font-size: 9px;
+        letter-spacing: 3px;
+      }
+      .points-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--sky-bright);
+        background: var(--surface-3);
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .points-chip::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        background: var(--sky);
+        box-shadow: 0 0 8px var(--sky);
+      }
 
-    /* 화면 중앙 스캔 안내 프레임 */
-    .cam-overlay { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-    .cam-frame {
-      position: relative; z-index: 2; width: min(64vw, 260px); aspect-ratio: 1;
-      box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.55); 
-    }
-    .cam-frame::before {
-      content: ''; position: absolute; inset: 0; filter: drop-shadow(0 0 8px var(--glow));
-      background:
-        linear-gradient(var(--sky) 0 0) top left / 34px 3px,
-        linear-gradient(var(--sky) 0 0) top left / 3px 34px,
-        linear-gradient(var(--sky) 0 0) top right / 34px 3px,
-        linear-gradient(var(--sky) 0 0) top right / 3px 34px,
-        linear-gradient(var(--sky) 0 0) bottom left / 34px 3px,
-        linear-gradient(var(--sky) 0 0) bottom left / 3px 34px,
-        linear-gradient(var(--sky) 0 0) bottom right / 34px 3px,
-        linear-gradient(var(--sky) 0 0) bottom right / 3px 34px;
-      background-repeat: no-repeat;
-    }
-    .cam-frame::after {
-      content: ''; position: absolute; left: 8px; right: 8px; top: 10%; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--sky-bright), transparent);
-      box-shadow: 0 0 14px 2px var(--glow);
-      animation: camScan 2.2s ease-in-out infinite;
-    }
-    @keyframes camScan { 0%, 100% { top: 8%; } 50% { top: 90%; } }
-  </style>
-</head>
-<body style="margin: 0px; overflow: hidden;">
-
-  <!-- 상단 대구FC UI 레이아웃 -->
-  <header class="appbar">
-    <div class="logo-text">
-      <b>DAEGU FC AR</b>
-      <small>REAL CARD SCALE TEST</small>
-    </div>
-    <div class="points-chip">AR SCANNER</div>
-  </header>
-
-  <!-- 가이드 HUD -->
-  <div class="cam-overlay" id="scanner-ui">
-    <div class="cam-frame"></div>
-  </div>
-
-  <a-scene embedded 
-           arjs="sourceType: webcam; 
-                 debugUIEnabled: false; 
-                 detectionMode: mono_and_matrix; 
-                 matrixCodeType: 3x3; 
-                 sourceWidth: 640; 
-                 sourceHeight: 480; 
-                 displayWidth: 640; 
-                 displayHeight: 480;">
-                 
-    <a-assets>
-      <canvas id="cardCanvas" width="512" height="712"></canvas>
-      <canvas id="leftCanvas" width="350" height="500"></canvas>
-      <canvas id="rightCanvas" width="350" height="500"></canvas>
-    </a-assets>
-
-    <!-- 히로(Hiro) 마커 감지 노드 -->
-    <a-marker preset="hiro" id="ar-marker">
-      
-      <!-- 카드 본체와 좌우 패널을 감싸는 전개 애니메이션 컨테이너 그룹 -->
-      <a-entity id="unfold-group">
-        
-        <!-- 
-          [1] 중앙 메인 카드 
-          - 실물 컬렉터블 카드 비율(약 1:1.4) 유지하며 대폭 스케일링 업 (가로 2.8, 세로 3.92)[cite: 3]
-        -->
-        <a-plane id="center-card" position="0 0.2 0" rotation="-90 0 0" width="2.8" height="3.92" material="src: #cardCanvas; transparent: true;"></a-plane>
-
-        <!-- 
-          [2] 좌측 스탯 정보 패널
-          - 메인 카드 확장에 맞추어 패널 사이즈 업 (가로 1.96, 세로 2.8)[cite: 3]
-        -->
-        <a-plane id="left-panel" position="0 0.05 0" rotation="-90 0 0" width="1.96" height="2.8" material="src: #leftCanvas; transparent: true; opacity: 0;"></a-plane>
-
-        <!-- 
-          [3] 우측 트로피 정보 패널
-          - 메인 카드 확장에 맞추어 패널 사이즈 업 (가로 1.96, 세로 2.8)[cite: 3]
-        -->
-        <a-plane id="right-panel" position="0 0.05 0" rotation="-90 0 0" width="1.96" height="2.8" material="src: #rightCanvas; transparent: true; opacity: 0;"></a-plane>
-
-      </a-entity>
-
-    </a-marker>
-
-    <a-entity camera="fov: 60; active: true;" position="0 0 0"></a-entity>
-  </a-scene>
-
-  <script>
-    const drawToCanvas = (id, drawFn) => {
-      const canvas = document.getElementById(id);
-      const ctx = canvas.getContext('2d');
-      drawFn(ctx, canvas.width, canvas.height);
-    };
-
-    // 1. 중앙 세징야 카드 텍스처 그리기
-    drawToCanvas('cardCanvas', (ctx, w, h) => {
-      ctx.fillStyle = '#0c1c2c';
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#33bdf5';
-      ctx.lineWidth = 14;
-      ctx.strokeRect(20, 20, w - 40, h - 40);
-
-      ctx.fillStyle = '#7fe0ff';
-      ctx.font = 'bold 100px sans-serif';
-      ctx.fillText('11', 60, 150);
-      ctx.font = 'bold 45px sans-serif';
-      ctx.fillText('CESINHA', 60, 230);
-      ctx.font = 'bold 22px sans-serif';
-      ctx.fillStyle = '#61717d';
-      ctx.fillText('DAEGU FC / FORWARD', 60, 275);
-
-      ctx.strokeStyle = 'rgba(51, 189, 245, 0.4)';
-      ctx.lineWidth = 5;
-      ctx.strokeRect(40, 320, w-80, 330);
-    });
-
-    // 2. 왼쪽 스탯 패널 텍스처 그리기
-    drawToCanvas('leftCanvas', (ctx, w, h) => {
-      ctx.fillStyle = 'rgba(14, 23, 33, 0.95)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#33bdf5';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(15, 15, w - 30, h - 30);
-
-      ctx.fillStyle = '#7fe0ff';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.fillText('PERSONA DATA', 35, 70);
-
-      ctx.fillStyle = '#eef5fa';
-      ctx.font = '22px sans-serif';
-      ctx.fillText('AGE: 36', 35, 150);
-      ctx.fillText('HEIGHT: 177cm', 35, 200);
-      ctx.fillText('WEIGHT: 74kg', 35, 250);
-
-      ctx.fillStyle = '#7fe0ff';
-      ctx.fillText('SKILLS GAUGE', 35, 340);
-      ctx.fillStyle = '#33bdf5';
-      ctx.fillRect(35, 370, 240, 24);
-    });
-
-    // 3. 오른쪽 트로피 패널 텍스처 그리기
-    drawToCanvas('rightCanvas', (ctx, w, h) => {
-      ctx.fillStyle = 'rgba(14, 23, 33, 0.95)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#33bdf5';
-      ctx.lineWidth = 8;
-      ctx.strokeRect(15, 15, w - 30, h - 30);
-
-      ctx.fillStyle = '#7fe0ff';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.fillText('HONORS', 35, 70);
-
-      ctx.fillStyle = '#eef5fa';
-      ctx.font = '22px sans-serif';
-      ctx.fillText('🏆 FA CUP WINNER', 35, 150);
-      ctx.fillText('⭐ K-LEAGUE MVP', 35, 210);
-      ctx.fillText('⚽ TOP ASSISTANT', 35, 270);
-    });
-
-    const marker = document.getElementById('ar-marker');
-    const leftPanel = document.getElementById('left-panel');
-    const rightPanel = document.getElementById('right-panel');
-    const centerCard = document.getElementById('center-card');
-    const scannerUI = document.getElementById('scanner-ui');
-
-    let isTracking = false;
-    let animProgress = 0.0;
-
-    marker.addEventListener('markerFound', () => {
-      isTracking = true;
-      scannerUI.style.display = 'none'; 
-    });
-
-    marker.addEventListener('markerLost', () => {
-      isTracking = false;
-      setTimeout(() => {
-        if (!isTracking) {
-          scannerUI.style.display = 'flex';
+      /* 화면 중앙 스캔 안내 프레임 */
+      .cam-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .cam-frame {
+        position: relative;
+        z-index: 2;
+        width: min(64vw, 260px);
+        aspect-ratio: 1;
+        box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.55);
+      }
+      .cam-frame::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        filter: drop-shadow(0 0 8px var(--glow));
+        background:
+          linear-gradient(var(--sky) 0 0) top left / 34px 3px,
+          linear-gradient(var(--sky) 0 0) top left / 3px 34px,
+          linear-gradient(var(--sky) 0 0) top right / 34px 3px,
+          linear-gradient(var(--sky) 0 0) top right / 3px 34px,
+          linear-gradient(var(--sky) 0 0) bottom left / 34px 3px,
+          linear-gradient(var(--sky) 0 0) bottom left / 3px 34px,
+          linear-gradient(var(--sky) 0 0) bottom right / 34px 3px,
+          linear-gradient(var(--sky) 0 0) bottom right / 3px 34px;
+        background-repeat: no-repeat;
+      }
+      .cam-frame::after {
+        content: "";
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 10%;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--sky-bright),
+          transparent
+        );
+        box-shadow: 0 0 14px 2px var(--glow);
+        animation: camScan 2.2s ease-in-out infinite;
+      }
+      @keyframes camScan {
+        0%,
+        100% {
+          top: 8%;
         }
-      }, 300);
-    });
+        50% {
+          top: 90%;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin: 0px; overflow: hidden">
+    <!-- 상단 대구FC UI 레이아웃 -->
+    <header class="appbar">
+      <div class="logo-text">
+        <b>DAEGU FC AR</b>
+        <small>REAL CARD SCALE TEST</small>
+      </div>
+      <div class="points-chip">AR SCANNER</div>
+    </header>
 
-    function animate() {
-      requestAnimationFrame(animate);
+    <!-- 가이드 HUD -->
+    <div class="cam-overlay" id="scanner-ui">
+      <div class="cam-frame"></div>
+    </div>
 
-      if (isTracking) {
-        animProgress += (1.0 - animProgress) * 0.08; 
-      } else {
-        animProgress += (0.0 - animProgress) * 0.15; 
+    <!-- 
+      [카메라 화질 극대화 + 왜곡 방지 수정]
+      sourceWidth/Height를 1280x720 HD 화질로 끌어올려 카메라 센서의 정밀도를 강화했습니다.
+      덕분에 작은 마커도 뭉개지지 않고 정확하고 정교하게 인식됩니다.
+    -->
+    <a-scene
+      embedded
+      arjs="sourceType: webcam; 
+            debugUIEnabled: false; 
+            detectionMode: mono_and_matrix; 
+            matrixCodeType: 3x3; 
+            sourceWidth: 1280; 
+            sourceHeight: 720; 
+            displayWidth: 1280; 
+            displayHeight: 720;"
+    >
+      <a-assets>
+        <canvas id="cardCanvas" width="512" height="712"></canvas>
+        <canvas id="leftCanvas" width="350" height="500"></canvas>
+        <canvas id="rightCanvas" width="350" height="500"></canvas>
+      </a-assets>
+
+      <!-- 히로(Hiro) 마커 감지 노드 -->
+      <a-marker preset="hiro" id="ar-marker">
+        <!-- 카드 본체와 좌우 패널을 감싸는 전개 애니메이션 컨테이너 그룹 -->
+        <a-entity id="unfold-group">
+          <!-- 
+            [1] 중앙 메인 카드 
+            - 11.5mm 소형 마커 대비 실제 컬렉터블 카드 비율(약 1:1.4)로 큼직하게 3D 스케일 업 완료
+          -->
+          <a-plane
+            id="center-card"
+            position="0 0.2 0"
+            rotation="-90 0 0"
+            width="2.8"
+            height="3.92"
+            material="src: #cardCanvas; transparent: true;"
+          ></a-plane>
+
+          <!-- 
+            [2] 좌측 스탯 정보 패널 
+            - 확대된 카드 스케일에 맞춰 스냅감 있게 조화되도록 가로 1.96, 세로 2.8로 스케일 업
+          -->
+          <a-plane
+            id="left-panel"
+            position="0 0.05 0"
+            rotation="-90 0 0"
+            width="1.96"
+            height="2.8"
+            material="src: #leftCanvas; transparent: true; opacity: 0;"
+          ></a-plane>
+
+          <!-- 
+            [3] 우측 트로피 정보 패널 
+            - 확대된 카드 스케일에 맞춰 스냅감 있게 조화되도록 가로 1.96, 세로 2.8로 스케일 업
+          -->
+          <a-plane
+            id="right-panel"
+            position="0 0.05 0"
+            rotation="-90 0 0"
+            width="1.96"
+            height="2.8"
+            material="src: #rightCanvas; transparent: true; opacity: 0;"
+          ></a-plane>
+        </a-entity>
+      </a-marker>
+
+      <!-- 3D 오브젝트와 비디오 해상도가 자연스러운 비율을 찾도록 fov: 60 수준으로 셋업 -->
+      <a-entity camera="fov: 60; active: true;" position="0 0 0"></a-entity>
+    </a-scene>
+
+    <script>
+      const drawToCanvas = (id, drawFn) => {
+        const canvas = document.getElementById(id);
+        const ctx = canvas.getContext("2d");
+        drawFn(ctx, canvas.width, canvas.height);
+      };
+
+      // 1. 중앙 세징야 카드 텍스처 그리기 (고해상도 맞춤 텍스처 선 보정)
+      drawToCanvas("cardCanvas", (ctx, w, h) => {
+        ctx.fillStyle = "#0c1c2c";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#33bdf5";
+        ctx.lineWidth = 14;
+        ctx.strokeRect(20, 20, w - 40, h - 40);
+
+        ctx.fillStyle = "#7fe0ff";
+        ctx.font = "bold 100px sans-serif";
+        ctx.fillText("11", 60, 150);
+        ctx.font = "bold 45px sans-serif";
+        ctx.fillText("CESINHA", 60, 230);
+        ctx.font = "bold 22px sans-serif";
+        ctx.fillStyle = "#61717d";
+        ctx.fillText("DAEGU FC / FORWARD", 60, 275);
+
+        ctx.strokeStyle = "rgba(51, 189, 245, 0.4)";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(40, 320, w - 80, 330);
+      });
+
+      // 2. 왼쪽 스탯 패널 텍스처 그리기
+      drawToCanvas("leftCanvas", (ctx, w, h) => {
+        ctx.fillStyle = "rgba(14, 23, 33, 0.95)";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#33bdf5";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(15, 15, w - 30, h - 30);
+
+        ctx.fillStyle = "#7fe0ff";
+        ctx.font = "bold 28px sans-serif";
+        ctx.fillText("PERSONA DATA", 35, 70);
+
+        ctx.fillStyle = "#eef5fa";
+        ctx.font = "22px sans-serif";
+        ctx.fillText("AGE: 36", 35, 150);
+        ctx.fillText("HEIGHT: 177cm", 35, 200);
+        ctx.fillText("WEIGHT: 74kg", 35, 250);
+
+        ctx.fillStyle = '#7fe0ff';
+        ctx.fillText('SKILLS GAUGE', 35, 340);
+        ctx.fillStyle = '#33bdf5';
+        ctx.fillRect(35, 370, 240, 24);
+      });
+
+      // 3. 오른쪽 트로피 패널 텍스처 그리기
+      drawToCanvas("rightCanvas", (ctx, w, h) => {
+        ctx.fillStyle = "rgba(14, 23, 33, 0.95)";
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = "#33bdf5";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(15, 15, w - 30, h - 30);
+
+        ctx.fillStyle = "#7fe0ff";
+        ctx.font = "bold 28px sans-serif";
+        ctx.fillText("HONORS", 35, 70);
+
+        ctx.fillStyle = "#eef5fa";
+        ctx.font = "22px sans-serif";
+        ctx.fillText("🏆 FA CUP WINNER", 35, 150);
+        ctx.fillText("⭐ K-LEAGUE MVP", 35, 210);
+        ctx.fillText("⚽ TOP ASSISTANT", 35, 270);
+      });
+
+      const marker = document.getElementById("ar-marker");
+      const leftPanel = document.getElementById("left-panel");
+      const rightPanel = document.getElementById("right-panel");
+      const centerCard = document.getElementById("center-card");
+      const scannerUI = document.getElementById("scanner-ui");
+
+      let isTracking = false;
+      let animProgress = 0.0;
+
+      marker.addEventListener("markerFound", () => {
+        isTracking = true;
+        scannerUI.style.display = "none";
+      });
+
+      marker.addEventListener("markerLost", () => {
+        isTracking = false;
+        setTimeout(() => {
+          if (!isTracking) {
+            scannerUI.style.display = "flex";
+          }
+        }, 300);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        if (isTracking) {
+          animProgress += (1.0 - animProgress) * 0.08;
+        } else {
+          animProgress += (0.0 - animProgress) * 0.15;
+        }
+
+        if (leftPanel && rightPanel && centerCard) {
+          // [스케일링 보정 - X축] 
+          // 가로 2.8 사이즈 카드 크기에 대응하여 패널이 부드럽게 좌우 간격 -2.6, 2.6 만큼 수평 전개
+          leftPanel.setAttribute("position", `${-2.6 * animProgress} 0.05 0`);
+          rightPanel.setAttribute("position", `${2.6 * animProgress} 0.05 0`);
+
+          // [스케일링 보정 - Y축 (수직 높이)]
+          // 커진 실물 카드 사이즈 레이아웃의 깊이감을 주기 위해 돌출 높이를 각각 0.2, 0.05에서 더 높이 위로 띄워 전개 연출
+          centerCard.setAttribute(
+            "position",
+            `0 ${0.2 + 0.3 * animProgress} 0`,
+          );
+          leftPanel.setAttribute(
+            "position",
+            `${-2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
+          );
+          rightPanel.setAttribute(
+            "position",
+            `${2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`,
+          );
+
+          // 페이드인 투명도 처리
+          leftPanel.setAttribute(
+            "material",
+            `src: #leftCanvas; transparent: true; opacity: ${animProgress}`,
+          );
+          rightPanel.setAttribute(
+            "material",
+            `src: #rightCanvas; transparent: true; opacity: ${animProgress}`,
+          );
+        }
       }
 
-      if (leftPanel && rightPanel && centerCard) {
-        // [스케일링 보정 - X축] 
-        // 카드 본체가 가로 2.8로 커졌기 때문에 겹치지 않고 양옆으로 전개되도록 거리를 -2.6, 2.6으로 대폭 확장[cite: 3]
-        leftPanel.setAttribute('position', `${-2.6 * animProgress} 0.05 0`);
-        rightPanel.setAttribute('position', `${2.6 * animProgress} 0.05 0`);
-
-        // [스케일링 보정 - Y축]
-        // 커진 카드 크기에 맞춰 수직 돌출 높이도 카드 높이의 입체감에 맞게 더 크게(0.2 ~ 0.5) 리사이징[cite: 3]
-        centerCard.setAttribute('position', `0 ${0.2 + 0.3 * animProgress} 0`);
-        leftPanel.setAttribute('position', `${-2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`);
-        rightPanel.setAttribute('position', `${2.6 * animProgress} ${0.05 + 0.4 * animProgress} 0`);
-
-        // 페이드인 처리
-        leftPanel.setAttribute('material', `src: #leftCanvas; transparent: true; opacity: ${animProgress}`);
-        rightPanel.setAttribute('material', `src: #rightCanvas; transparent: true; opacity: ${animProgress}`);
-      }
-    }
-
-    animate();
-  </script>
-</body>
+      animate();
+    </script>
+  </body>
 </html>
