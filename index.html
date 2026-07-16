@@ -6,55 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
     />
-    <title>요정공주 채하 - AR 팬카드 전개 데모 (3D 입체 터치)</title>
+    <title>요정공주 채하 - AR 팬카드 전개 데모 (초고속 3D 마법 터치)</title>
 
     <!-- 웹캠 제어 및 3D 렌더링을 즉시 구동해주는 오픈소스 AR 라이브러리 -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
-    <script>
-      // [핵심] 조명과 그림자에 반응하여 광택이 나는 입체 3D 하트를 그리는 A-Frame 커스텀 컴포넌트 등록
-      AFRAME.registerComponent("heart-3d", {
-        schema: {
-          color: { type: "color", default: "#ff4b72" },
-        },
-        init: function () {
-          // 3D 공간에 정의할 하트 단면 곡선 그리기
-          const shape = new THREE.Shape();
-          shape.moveTo(0, -0.3);
-          shape.bezierCurveTo(-0.2, -0.3, -0.5, -0.1, -0.5, 0.15);
-          shape.bezierCurveTo(-0.5, 0.4, -0.25, 0.5, 0, 0.25);
-          shape.bezierCurveTo(0.25, 0.5, 0.5, 0.4, 0.5, 0.15);
-          shape.bezierCurveTo(0.5, -0.1, 0.2, -0.3, 0, -0.3);
-
-          // 하트에 두께감을 더하고 모서리를 둥글게 깎아 입체감 부여 (Bevel 처리)
-          const extrudeSettings = {
-            depth: 0.12, // 하트 두께
-            bevelEnabled: true, // 부드러운 각진 엣지 활성화
-            bevelSegments: 5, // 둥글기 퀄리티
-            steps: 1,
-            bevelSize: 0.04, // 둥글게 다듬는 크기
-            bevelThickness: 0.04, // 앞으로 돌출될 모서리 두께
-          };
-
-          const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-          geometry.center(); // 자전축이 하트의 정확한 한가운데가 되도록 자동 정렬
-
-          // 조명 스펙큘러가 은은하게 반짝이는 하이글로시 매끄러운 마테리얼 적용
-          const material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(this.data.color),
-            roughness: 0.15, // 낮을수록 유리나 사탕처럼 빤짝거림
-            metalness: 0.05,
-            transparent: true, // 자연스럽게 투명해지도록 처리
-            opacity: 1.0,
-            side: THREE.DoubleSide,
-          });
-
-          const mesh = new THREE.Mesh(geometry, material);
-          this.el.setObject3D("mesh", mesh);
-        },
-      });
-    </script>
 
     <style>
       :root {
@@ -361,10 +317,10 @@
       let isTracking = false;
       let animProgress = 0.0;
 
-      // 활성화된 마법 하트 파티클 배열
+      // 활성화된 3D 하트 파티클 배열 (Three.js 메쉬를 직접 보관)
       const activeHearts = [];
 
-      // 요정나라 파스텔 톤 3D 하트 파티클 색상 목록
+      // 요정나라 파스텔 톤 색상들
       const heartColors = [
         "#ff4b72", // 체리 로즈
         "#ff8da1", // 파스텔 핑크
@@ -373,6 +329,34 @@
         "#e8a7ff", // 신비로운 퍼플
         "#5cd6ff", // 에메랄드 블루
       ];
+
+      // --- [최적화 핵심] 전역 메모리에 단 하나의 하트 지오메트리 캐싱 ---
+      let cachedHeartGeometry = null;
+
+      function getSharedHeartGeometry() {
+        if (cachedHeartGeometry) return cachedHeartGeometry;
+
+        const shape = new THREE.Shape();
+        shape.moveTo(0, -0.3);
+        shape.bezierCurveTo(-0.2, -0.3, -0.5, -0.1, -0.5, 0.15);
+        shape.bezierCurveTo(-0.5, 0.4, -0.25, 0.5, 0, 0.25);
+        shape.bezierCurveTo(0.25, 0.5, 0.5, 0.4, 0.5, 0.15);
+        shape.bezierCurveTo(0.5, -0.1, 0.2, -0.3, 0, -0.3);
+
+        const extrudeSettings = {
+          depth: 0.1, // 하트 두께감 최적화
+          bevelEnabled: true,
+          bevelSegments: 2, // 부드러움 단계를 5에서 2로 줄여 삼각형 연산 대폭 절감!
+          steps: 1,
+          bevelSize: 0.03,
+          bevelThickness: 0.03,
+        };
+
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        geometry.center(); // 자전축 센터링
+        cachedHeartGeometry = geometry;
+        return geometry;
+      }
 
       marker.addEventListener("markerFound", () => {
         isTracking = true;
@@ -392,85 +376,83 @@
         }, 300);
       });
 
-      // 손가락 터치 위치에서 단 '하나'의 입체 3D 하트를 생성하여 발사하는 정교한 함수
+      // 단 하나의 3D 입체 하트를 터치한 손가락 끝 좌표에서 쏘아 올리는 최적화 함수
       function spawnMagicHeartAtClick(e) {
-        // 탑바 UI 영역 터치 차단
-        if (e.clientY < 65) return;
+        if (e.clientY < 65) return; // 상단 헤더 영역 차단
 
+        const sceneEl = document.querySelector("a-scene");
+        const scene3D = sceneEl.object3D; // 가벼운 Pure Three.js 씬 루트 확보
         const camera = mainCamera.getObject3D("camera");
-        if (!camera) return;
+        if (!camera || !scene3D) return;
 
-        // 1. 터치한 2D 좌표를 WebGL Normalized Device Coordinates(NDC)로 변환
+        // 1. 스크린 터치 좌표를 3D 공간 NDC 좌표로 매핑
         const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
         const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
 
-        // 2. 카메라의 뷰 투영 매트릭스를 활용해 2D 스크린 좌표를 3D 광선(Ray) 벡터로 역투영(Unproject)
         const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
         vec.unproject(camera);
 
         const camPos = new THREE.Vector3();
         camera.getWorldPosition(camPos);
 
-        // 3. 카메라 위치에서 터치 위치를 향하는 3차원 방향(Vector) 추출
+        // 2. 발사 방향 계산 및 월드 생성 위치 지정 (카메라 앞 0.7m)
         const dir = vec.clone().sub(camPos).normalize();
-
-        // 4. 화면 바로 앞에서 생성된 것처럼 자연스럽도록 카메라 기준 약 0.7m 전방의 3D 공간에 생성 위치 지정
         const spawnDistance = 0.7;
         const spawnWorldPos = camPos
           .clone()
           .add(dir.clone().multiplyScalar(spawnDistance));
 
-        // 5. 알록달록한 마법 색상 중 하나 무작위 추출
         const randomColor =
           heartColors[Math.floor(Math.random() * heartColors.length)];
 
-        // 6. A-Frame 엔티티 생성 및 방금 만든 'heart-3d' 컴포넌트 장착
-        const heartEl = document.createElement("a-entity");
-        heartEl.setAttribute("heart-3d", `color: ${randomColor}`);
+        // 3. 지오메트리 재활용 및 캔디 유광 재질(MeshPhongMaterial) 동적 생성
+        const geometry = getSharedHeartGeometry();
 
-        // 절대 좌표 기준 생성
-        heartEl.setAttribute(
-          "position",
-          `${spawnWorldPos.x} ${spawnWorldPos.y} ${spawnWorldPos.z}`,
+        // MeshStandardMaterial 대신 모바일 연산이 훨씬 가벼운 Phong 재질 사용!
+        const material = new THREE.MeshPhongMaterial({
+          color: new THREE.Color(randomColor),
+          shininess: 90, // 플라스틱 완구 같은 이쁜 반사광
+          specular: 0xffffff,
+          transparent: true,
+          opacity: 1.0,
+          side: THREE.DoubleSide,
+          depthWrite: false, // 반투명 중첩 렌더링 렉 최소화
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(spawnWorldPos);
+
+        // 랜덤 자전 각도 주기
+        mesh.rotation.set(
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
         );
 
-        // 입체적인 느낌을 살리기 위해 랜덤 회전 축 적용
-        const rotX = Math.random() * 360;
-        const rotY = Math.random() * 360;
-        const rotZ = Math.random() * 360;
-        heartEl.setAttribute("rotation", `${rotX} ${rotY} ${rotZ}`);
+        // 4. [최적화 핵심] A-Frame HTML 태그를 거치지 않고 Three.js 씬에 직접 메쉬 추가 (DOM 부하 Zero)
+        scene3D.add(mesh);
 
-        // 마커나 특정 엔티티에 종속되지 않고, 월드 공간 전체에 직접 추가
-        const sceneEl = document.querySelector("a-scene");
-        sceneEl.appendChild(heartEl);
+        // 5. 발사 힘 벡터 설정 (앞쪽 깊숙이 슈팅)
+        const speed = 4.5;
+        const vx = dir.x * speed + (Math.random() - 0.5) * 0.2;
+        const vy = dir.y * speed + (Math.random() - 0.5) * 0.2;
+        const vz = dir.z * speed + (Math.random() - 0.5) * 0.2;
 
-        // 7. 터치한 방향을 향해 힘차게 깊숙히 멀어지도록 속도 제어
-        const speed = 4.2; // 앞으로 날아가는 속도
-        const vx = dir.x * speed + (Math.random() - 0.5) * 0.3;
-        const vy = dir.y * speed + (Math.random() - 0.5) * 0.3;
-        const vz = dir.z * speed + (Math.random() - 0.5) * 0.3;
-
-        // 8. 업데이트 루프에 보관하여 자연스럽게 비행/소멸하도록 등록
+        // 6. 업데이트 처리를 위한 정보 보관 (A-Frame 속성 문자열 직렬화를 제거하여 고성능 확보)
         activeHearts.push({
-          el: heartEl,
-          x: spawnWorldPos.x,
-          y: spawnWorldPos.y,
-          z: spawnWorldPos.z,
+          mesh: mesh,
           vx: vx,
           vy: vy,
           vz: vz,
-          rx: rotX,
-          ry: rotY,
-          rz: rotZ,
-          rvx: (Math.random() - 0.5) * 220, // 공중 제비 회전 속도
-          rvy: (Math.random() - 0.5) * 220,
-          rvz: (Math.random() - 0.5) * 220,
+          rvx: (Math.random() - 0.5) * 3.5, // 3D 자전 속도 (Radian 단위 직결)
+          rvy: (Math.random() - 0.5) * 3.5,
+          rvz: (Math.random() - 0.5) * 3.5,
           life: 1.0,
-          decay: Math.random() * 0.35 + 0.4, // 소멸 속도 (약 1.5~2초 유지)
+          decay: Math.random() * 0.35 + 0.4, // 수명 시간 (약 1.5초~2초 유지)
         });
       }
 
-      // 모바일 멀티 터치 오작동을 차단하고 클릭 시 정확히 한 개씩만 발사하게 하는 통합 리스너
+      // 모바일 멀티 터치 문제를 완벽하게 회복한 포인터 다운 이벤트 (딱 한 번 클릭에 한 개 발사)
       window.addEventListener("pointerdown", (e) => {
         spawnMagicHeartAtClick(e);
       });
@@ -484,7 +466,7 @@
         const dt = (now - lastTime) / 1000;
         lastTime = now;
 
-        // 카드 전개 애니메이션
+        // 마커 감지 카드 전개 처리
         if (isTracking) {
           animProgress += (1.0 - animProgress) * 0.08;
         } else {
@@ -518,50 +500,40 @@
           );
         }
 
-        // --- 마법 3D 하트 실시간 역학 계산 및 소멸 제어 루프 ---
+        // --- [최적화 핵심] 초고속 Three.js 파티클 실시간 연산 루프 ---
         for (let i = activeHearts.length - 1; i >= 0; i--) {
           const h = activeHearts[i];
           h.life -= h.decay * dt;
 
-          // 수명이 끝난 하트 정밀 클리닝
+          // 수명이 끝난 하트는 메모리 누수를 막기 위해 무조건 제거 및 메모리 소거(Dispose) 처리
           if (h.life <= 0) {
-            if (h.el.parentNode) {
-              h.el.parentNode.removeChild(h.el);
+            if (h.mesh.parent) {
+              h.mesh.parent.remove(h.mesh);
             }
+            // GPU에 묶여있던 단일 머티리얼 메모리도 클리닝
+            h.mesh.material.dispose();
             activeHearts.splice(i, 1);
             continue;
           }
 
-          // 공기저항 감속
+          // 속도 감속 및 위치 전이
           h.vx *= 0.96;
           h.vy *= 0.96;
           h.vz *= 0.96;
 
-          // 프레임 보정 속도로 3D 좌표 물리 연산
-          h.x += h.vx * dt;
-          h.y += h.vy * dt;
-          h.z += h.vz * dt;
+          h.mesh.position.x += h.vx * dt;
+          h.mesh.position.y += h.vy * dt;
+          h.mesh.position.z += h.vz * dt;
 
-          // 회전
-          h.rx += h.rvx * dt;
-          h.ry += h.rvy * dt;
-          h.rz += h.rvz * dt;
+          // 회전력 추가
+          h.mesh.rotation.x += h.rvx * dt;
+          h.mesh.rotation.y += h.rvy * dt;
+          h.mesh.rotation.z += h.rvz * dt;
 
-          // 크기 점진 수축
-          const currentScale = h.life * 0.6; // 초기 크기 배율 최적화
-
-          h.el.setAttribute("position", `${h.x} ${h.y} ${h.z}`);
-          h.el.setAttribute("rotation", `${h.rx} ${h.ry} ${h.rz}`);
-          h.el.setAttribute(
-            "scale",
-            `${currentScale} ${currentScale} ${currentScale}`,
-          );
-
-          // Three.js 내부 마테리얼에 투명도 동적 적용 (자연스러운 디졸브 연출)
-          const mesh = h.el.getObject3D("mesh");
-          if (mesh && mesh.material) {
-            mesh.material.opacity = h.life;
-          }
+          // 디졸브(서서히 스케일 다운 및 투명화)
+          const currentScale = h.life * 0.65;
+          h.mesh.scale.set(currentScale, currentScale, currentScale);
+          h.mesh.material.opacity = h.life;
         }
       }
 
